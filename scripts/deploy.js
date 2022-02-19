@@ -1,29 +1,59 @@
-// We require the Hardhat Runtime Environment explicitly here. This is optional
-// but useful for running the script in a standalone fashion through `node <script>`.
-//
-// When running the script with `npx hardhat run <script>` you'll find the Hardhat
-// Runtime Environment's members available in the global scope.
 const hre = require('hardhat');
+const fs = require('fs');
+const path = require('path');
+
+const saveContractAddress = (address, contractName = 'Marketplace') => {
+  fs.writeFileSync(
+    `${path.resolve(
+      __dirname,
+      '../',
+      'artifacts',
+      'contracts',
+      `${contractName}.sol`
+    )}/contract-address.json`,
+    JSON.stringify({ address }),
+    (err) => {
+      console.log('wtf');
+      if (err) {
+        console.error(err);
+        return;
+      }
+    }
+  );
+};
 
 async function main() {
-  // Hardhat always runs the compile task when running scripts with its command
-  // line interface.
-  //
-  // If this script is run directly using `node` you may want to call compile
-  // manually to make sure everything is compiled
-  // await hre.run('compile');
+  const LeonToken = await hre.ethers.getContractFactory('LeonToken');
+  const leonTokenInstance = await LeonToken.deploy();
 
-  // We get the contract to deploy
   const LeocodeToken = await hre.ethers.getContractFactory('LeocodeToken');
-  const leocodeTokenInstance = await LeocodeToken.deploy('Hello, Hardhat!');
+  const leocodeTokenInstance = await LeocodeToken.deploy();
 
-  await leocodeTokenInstance.deployed();
+  const USDToken = await hre.ethers.getContractFactory('USDToken');
+  const USDTokenInstance = await USDToken.deploy();
 
-  console.log('Token deployed to:', leocodeTokenInstance.address);
+  await leonTokenInstance.deployed();
+  await leonTokenInstance.deployed();
+  await USDTokenInstance.deployed();
+
+  console.log('USDToken deployed to:', USDTokenInstance.address);
+
+  const Marketplace = await hre.ethers.getContractFactory('Marketplace');
+  const marketplaceInstance = await Marketplace.deploy(
+    leonTokenInstance.address,
+    leocodeTokenInstance.address,
+    USDTokenInstance.address
+  );
+  await marketplaceInstance.deployed();
+
+  saveContractAddress(marketplaceInstance.address);
+
+  await leocodeTokenInstance.setupMarketplace(marketplaceInstance.address);
+  await USDTokenInstance.setupMarketplace(marketplaceInstance.address);
+
+  console.log('Marketplace deployed to:', marketplaceInstance.address);
 }
 
-// We recommend this pattern to be able to use async/await everywhere
-// and properly handle errors.
 main()
   .then(() => process.exit(0))
   .catch((error) => {
