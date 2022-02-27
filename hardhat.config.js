@@ -1,4 +1,8 @@
 require('@nomiclabs/hardhat-waffle');
+const { resolve } = require('path');
+const { config: dotenvConfig } = require('dotenv');
+
+dotenvConfig({ path: resolve(__dirname, './.env') });
 
 // This is a sample Hardhat task. To learn how to create your own go to
 // https://hardhat.org/guides/create-task.html
@@ -21,6 +25,10 @@ module.exports = {
   networks: {
     ganache: {
       url: 'http://127.0.0.1:7545',
+    },
+    rinkeby: {
+      url: process.env.ALCHEMY_RINKEBY_URL,
+      accounts: [process.env.PRIVATE_KEY],
     },
   },
   solidity: '0.8.4',

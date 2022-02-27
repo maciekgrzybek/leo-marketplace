@@ -1,39 +1,38 @@
 import { ethers } from 'ethers';
-import { Balance } from '../App';
 
 type Props = {
-  balances: Balance;
+  USDTbalance: string;
+  leoTokenBalance: string;
   signerAddress: string;
 };
 
-export const AccountDetails = ({ balances, signerAddress }: Props) => {
-  console.log({ balances });
+export const AccountDetails = ({
+  USDTbalance,
+  leoTokenBalance,
+  signerAddress,
+}: Props) => {
   return (
-    <div className="mb-3 bg-orange-600 rounded-lg py-6 px-12 flex justify-center flex-col items-center">
-      <h2>You are connected to MetaMask Wallet! </h2>
-      <br />
-      <h3 className="text-xl mb-2">Your details:</h3>
-      <ul>
-        <li>
-          Address: <span className="font-bold">{signerAddress}</span>
+    <div className="flex flex-col items-center text-center bg-white rounded-xl shadow text-gray-800 p-10">
+      <h3 className="text-2xl font-bold mb-2">Your details:</h3>
+      <ul className="grid gap-y-2">
+        <li className="truncate max-w-xs">
+          Address:
+          <br /> <span className="font-bold">{signerAddress}</span>
         </li>
-        {Object.values(balances).map(({ name, balance, decimals }) => {
-          return (
-            <li key={name}>
-              {name} balance:
-              <span className="font-bold">
-                {ethers.utils
-                  .formatUnits(
-                    `${ethers.BigNumber.from(balance).toNumber()}`,
-                    decimals
-                  )
-                  .toString()}
-                <br />
-                {ethers.BigNumber.from(balance).toNumber()}
-              </span>
-            </li>
-          );
-        })}
+        <li>
+          USDT balance: <br />
+          <span className="font-bold">
+            {USDTbalance}
+            <br />
+          </span>
+        </li>
+        <li>
+          LeoToken balance: <br />
+          <span className="font-bold">
+            {leoTokenBalance}
+            <br />
+          </span>
+        </li>
       </ul>
     </div>
   );

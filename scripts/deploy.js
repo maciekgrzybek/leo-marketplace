@@ -1,4 +1,3 @@
-const hre = require('hardhat');
 const fs = require('fs');
 const path = require('path');
 
@@ -13,7 +12,6 @@ const saveContractAddress = (address, contractName = 'Marketplace') => {
     )}/contract-address.json`,
     JSON.stringify({ address }),
     (err) => {
-      console.log('wtf');
       if (err) {
         console.error(err);
         return;
@@ -22,34 +20,59 @@ const saveContractAddress = (address, contractName = 'Marketplace') => {
   );
 };
 
+const copyFolder = () => {
+  const srcDir = path.resolve(__dirname, '../', 'artifacts', 'contracts');
+  const destDir = path.resolve(__dirname, './');
+
+  // To copy a folder or file
+  fse.copySync(srcDir, destDir, function (err) {
+    if (err) {
+      console.error(err);
+      {
+        overwrite: true;
+      } // add if you want to replace existing folder or file with same name
+    } else {
+      console.log('success!');
+    }
+  });
+};
+
 async function main() {
-  const LeonToken = await hre.ethers.getContractFactory('LeonToken');
-  const leonTokenInstance = await LeonToken.deploy();
+  const LeoToken = await ethers.getContractFactory('LeoToken');
+  const USDToken = await ethers.getContractFactory('USDToken');
+  const LeonNFT = await ethers.getContractFactory('LeonNFT');
 
-  const LeocodeToken = await hre.ethers.getContractFactory('LeocodeToken');
-  const leocodeTokenInstance = await LeocodeToken.deploy();
+  const leoTokenInstance = await LeoToken.deploy();
+  const usdTokenInstance = await USDToken.deploy();
+  const leonNFTInstance = await LeonNFT.deploy();
 
-  const USDToken = await hre.ethers.getContractFactory('USDToken');
-  const USDTokenInstance = await USDToken.deploy();
+  await leoTokenInstance.deployed();
+  saveContractAddress(leoTokenInstance.address, 'LeoToken');
+  await usdTokenInstance.deployed();
+  saveContractAddress(usdTokenInstance.address, 'USDToken');
+  await leonNFTInstance.deployed();
+  saveContractAddress(leonNFTInstance.address, 'LeonNFT');
 
-  await leonTokenInstance.deployed();
-  await leonTokenInstance.deployed();
-  await USDTokenInstance.deployed();
-
-  console.log('USDToken deployed to:', USDTokenInstance.address);
-
-  const Marketplace = await hre.ethers.getContractFactory('Marketplace');
+  const Marketplace = await ethers.getContractFactory('Marketplace');
   const marketplaceInstance = await Marketplace.deploy(
-    leonTokenInstance.address,
-    leocodeTokenInstance.address,
-    USDTokenInstance.address
+    leoTokenInstance.address,
+    usdTokenInstance.address,
+    leonNFTInstance.address
   );
   await marketplaceInstance.deployed();
+  saveContractAddress(marketplaceInstance.address, 'Marketplace');
 
-  saveContractAddress(marketplaceInstance.address);
+  await leonNFTInstance.mintMarketplace(marketplaceInstance.address);
+  await usdTokenInstance.mintUSDT(
+    marketplaceInstance.address,
+    100000 * 10 ** 6
+  );
+  await leoTokenInstance.transfer(
+    marketplaceInstance.address,
+    ethers.BigNumber.from(3000).mul(ethers.BigNumber.from(10).pow(18))
+  );
 
-  await leocodeTokenInstance.setupMarketplace(marketplaceInstance.address);
-  await USDTokenInstance.setupMarketplace(marketplaceInstance.address);
+  copyFolder();
 
   console.log('Marketplace deployed to:', marketplaceInstance.address);
 }

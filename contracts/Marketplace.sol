@@ -2,110 +2,123 @@
 pragma solidity ^0.8.0;
 
 import "hardhat/console.sol";
-import "./LeonToken.sol";
-import "./LeocodeToken.sol";
+
+import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
+import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
+import "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+
+import "./LeoToken.sol";
 import "./USDToken.sol";
 
-contract Marketplace {
-    LeonToken private LeonTokenContract;
-    LeocodeToken private LeocodeTokenContract;
-    USDToken private USDTokenContract;
+contract Marketplace is ERC1155Holder {
+    address private leo;
+    address private usdt;
+    address private leonNft;
+
+    uint8 public leoDecimals;
+    uint8 public usdtDecimals;
+
+    modifier isMyToken(address _address) {
+        require(_address == leo || _address == usdt, "Not my token");
+        _;
+    }
 
     constructor(
-        address leonTokenAddress,
-        address leocodeTokenAddress,
-        address USDTokenAddress
+        address _leo,
+        address _usdt,
+        address _leonNft
     ) {
-        LeonTokenContract = LeonToken(leonTokenAddress);
-        LeocodeTokenContract = LeocodeToken(leocodeTokenAddress);
-        USDTokenContract = USDToken(USDTokenAddress);
+        leo = _leo;
+        usdt = _usdt;
+        leonNft = _leonNft;
+
+        leoDecimals = LeoToken(_leo).decimals();
+        usdtDecimals = USDToken(_usdt).decimals();
     }
 
-    function printUSDTokens(uint256 amount) public payable returns (bool) {
-        USDTokenContract.printTokens(
-            msg.sender,
-            amount * (10**USDTokenContract.decimals())
-        );
-        return true;
-    }
+    function exchange(
+        address _from,
+        address _to,
+        uint256 _amount
+    ) public isMyToken(_from) isMyToken(_to) {
+        uint256 toSend;
 
-    function getUSDTokenBalance() public view returns (uint256 balance) {
-        return USDTokenContract.balanceOf(msg.sender);
-    }
+        if (_from == leo) {
+            toSend = _exchangeLeoToUsdt(_amount);
+        } else {
+            toSend = _exchangeUsdtToLeo(_amount);
+        }
 
-    function getLeocodeTokenBalance() public view returns (uint256 balance) {
-        return LeocodeTokenContract.balanceOf(msg.sender);
-    }
-
-    function getLeonTokenBalance() public view returns (uint256[3] memory) {
-        return LeonTokenContract.showTokens(msg.sender);
-    }
-
-    function getLeonTokenUri() public view returns (string memory) {
-        return LeonTokenContract.uri(0);
-    }
-
-    function buyUSDTokens(uint256 amount) public returns (bool) {
         require(
-            getLeocodeTokenBalance() >= amount,
-            "Not enough Leocode tokens"
+            IERC20(_to).balanceOf(address(this)) >= toSend,
+            "Not enough tokens"
         );
-        printUSDTokens(_exchangeLeocodeTokensToUSTD(amount));
-        LeocodeTokenContract.transfer(
-            address(LeocodeTokenContract),
-            amount * (10**LeocodeTokenContract.decimals())
-        );
-
-        return true;
+        IERC20(_to).transfer(msg.sender, toSend);
+        IERC20(_from).transferFrom(msg.sender, address(this), _amount);
     }
 
-    function buyLeocodeTokens(uint256 amount) public returns (bool) {
-        require(getUSDTokenBalance() >= amount, "Not enough USD tokens");
-
-        LeocodeTokenContract.transferFromByMarketPlace(
-            msg.sender,
-            _exchangeUSTDToLeocodeTokens(amount)
-        );
-        USDTokenContract.transferToByMarketPlace(
-            msg.sender,
-            amount * (10**USDTokenContract.decimals())
+    function buyNft(uint256 _id, address _with) public {
+        require(
+            IERC1155(leonNft).balanceOf(address(this), _id) > 0,
+            "Don't have that NFT"
         );
 
-        return true;
+        IERC1155(leonNft).safeTransferFrom(
+            address(this),
+            msg.sender,
+            _id,
+            1,
+            ""
+        );
+        ERC20(_with).transferFrom(
+            msg.sender,
+            address(this),
+            _calculateNftPrice(_with)
+        );
     }
 
-    function _exchangeLeocodeTokensToUSTD(uint256 amount)
+    function sellNft(uint256 _id, address _with) public {
+        require(
+            IERC1155(leonNft).balanceOf(msg.sender, _id) > 0,
+            "Don't have that NFT"
+        );
+
+        IERC1155(leonNft).safeTransferFrom(
+            msg.sender,
+            address(this),
+            _id,
+            1,
+            ""
+        );
+        ERC20(_with).transfer(msg.sender, _calculateNftPrice(_with));
+    }
+
+    function _calculateNftPrice(address _with) private view returns (uint256) {
+        uint256 price;
+
+        if (_with == leo) {
+            price = 200 * (10**leoDecimals);
+        } else {
+            price = (15 * (10**usdtDecimals)) / 10;
+        }
+
+        return price;
+    }
+
+    function _exchangeLeoToUsdt(uint256 _amount)
         private
         view
         returns (uint256)
     {
-        return
-            amount /
-            (10 **
-                (LeocodeTokenContract.decimals() -
-                    USDTokenContract.decimals())) /
-            (uint256(100) / uint256(3));
+        return ((_amount * (10**usdtDecimals)) / (10**leoDecimals) / 100) * 3;
     }
 
-    function _exchangeUSTDToLeocodeTokens(uint256 amount)
+    function _exchangeUsdtToLeo(uint256 _amount)
         private
         view
         returns (uint256)
     {
-        return
-            amount *
-            (10 **
-                (LeocodeTokenContract.decimals() -
-                    USDTokenContract.decimals())) *
-            (uint256(100) / uint256(3));
+        return ((_amount * 100 * (10**leoDecimals)) / (10**usdtDecimals)) / 3;
     }
-
-    // function _exchangeUSTDToLeocodeTokens(uint256 amount)
-    //     private
-    //     returns (uint256)
-    // {
-    //     return
-    //         (amount * (100 / 3)) *
-    //         (10**LeocodeTokenContract.decimals() - USDTokenContract.decimals());
-    // }
 }

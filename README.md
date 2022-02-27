@@ -13,3 +13,5 @@ npx hardhat node
 node scripts/sample-script.js
 npx hardhat help
 ```
+
+To see the LIVE app -> https://leo-marketplace.netlify.app/
