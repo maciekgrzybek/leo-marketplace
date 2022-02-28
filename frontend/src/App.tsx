@@ -132,7 +132,8 @@ function App() {
 
   const exchangeLeocodeTokensToUSDT = async (amount: BigNumber) => {
     if (leoTokenContract && marketplaceContract) {
-      await leoTokenContract.approve(marketPlaceAddress, amount);
+      const tx = await leoTokenContract.approve(marketPlaceAddress, amount);
+      await tx.wait();
       await marketplaceContract.exchange(
         leoTokenContractAddress,
         USDTokenContractAddress,
@@ -143,7 +144,8 @@ function App() {
 
   const exchangeUSDTToLeocodeToken = async (amount: BigNumber) => {
     if (USDTokenContract && marketplaceContract) {
-      await USDTokenContract.approve(marketPlaceAddress, amount);
+      const tx = await USDTokenContract.approve(marketPlaceAddress, amount);
+      await tx.wait();
       await marketplaceContract.exchange(
         USDTokenContractAddress,
         leoTokenContractAddress,
@@ -185,10 +187,11 @@ function App() {
     const payFromContractAddress =
       type === 'usdt' ? USDTokenContractAddress : leoTokenContractAddress;
     if (payFromContract && marketplaceContract) {
-      await payFromContract.approve(
+      const tx = await payFromContract.approve(
         marketPlaceAddress,
         ethers.utils.parseUnits('200', 18)
       );
+      await tx.wait();
       await marketplaceContract.buyNft(id, payFromContractAddress);
     }
   };
@@ -198,7 +201,11 @@ function App() {
       type === 'usdt' ? USDTokenContractAddress : leoTokenContractAddress;
 
     if (marketplaceContract && leonNFTContract) {
-      await leonNFTContract.setApprovalForAll(marketPlaceAddress, true);
+      const tx = await leonNFTContract.setApprovalForAll(
+        marketPlaceAddress,
+        true
+      );
+      await tx.wait();
       await marketplaceContract.sellNft(id, payFromContractAddress);
     }
   };
